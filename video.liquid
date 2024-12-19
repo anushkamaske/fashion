@@ -1,118 +1,151 @@
-{% comment %}theme-check-disable MissingTemplate{% endcomment %}
 {%- liquid
-  assign section_color = section.settings.color_scheme | default: 'scheme1'
-  assign video = section.settings.video
+  assign id = section.id | append: '-' | append: video.id
+  assign media_class = 'absolute inset-0 w-full h-full object-cover object-center'
+  assign preview_image_media_class = media_class | append: ' transition duration-300 scale-100 group-hover:scale-105'
+
+  if ratio != 'natural'
+    assign ratio_percentage = 1 | divided_by: ratio | times: 100
+  else
+    assign ratio_percentage = 1 | divided_by: video.aspect_ratio | times: 100
+  endif
+
+  if video == blank and ratio == 'natural'
+    assign ratio_percentage = 56.25
+  endif
+
+  assign container_class = 'group relative pb-[var(--ratio-percent)]'
+
+  if fill
+    if fill_only_on_desktop
+      assign container_class = 'group relative pb-[var(--ratio-percent)] lg:pb-0 lg:absolute lg:inset-0'
+    else
+      assign container_class = 'absolute inset-0'
+    endif
+  endif
 -%}
 
-<section
-  class="video overflow-hidden border-b-gridline border-gridline-color bg-scheme-background text-scheme-text"
-  data-color-scheme="{{ section_color }}"
+<div
+  class="{{ container_class }}"
+  style="--ratio-percent: {{ ratio_percentage }}%;"
 >
-  {% if section.settings.title != '' %}
-    {%- render 'section-title',
-      title: section.settings.title,
-      section_color: section_color
-    -%}
-  {% endif %}
+  {%- case mode -%}
+    {%- when 'autoplay' -%}
+      <div
+        id="{{ id }}"
+        class="absolute inset-0 h-full w-full"
+        x-data="Video('{{ mode | strip }}')"
+        x-intersect:enter.half="play(true)"
+        x-intersect:leave.half="pause"
+      >
+        <div
+          class="html-video-wrapper"
+          x-data="HTMLVideo"
+          @play="play"
+          @pause="pause"
+        >
+          {%- if video != blank -%}
+            {{
+              video
+              | video_tag:
+                autoplay: false,
+                image_size: '2048x',
+                loop: true,
+                controls: false,
+                preload: 'none',
+                class: media_class,
+                muted: true,
+                id: player_id,
+                x-ref: 'video'
+            }}
+          {%- else -%}
+            <video autoplay muted class="{{ media_class }}">
+              <source
+                src="{{ 'placeholder-video.mp4' | asset_url }}"
+                type="video/mp4"
+              >
+              Your browser does not support the video tag.
+            </video>
+          {%- endif -%}
+        </div>
+      </div>
+    {%- when 'preview' -%}
+      <div
+        id="{{ id }}"
+        class="absolute h-full w-full"
+        x-data="Video({{ playback | json }})"
+        x-intersect:leave="pause"
+      >
+        <div
+          class="relative h-full w-full"
+        >
+          <template x-if="!enabled">
+            <button
+              @click="enable"
+              class="group/button absolute inset-0 h-full w-full"
+              type="button"
+              aria-label="{{ 'media.play_video' | t }}"
+            >
+              <span
+                class="text-scheme-background-overlay group-hover/button:text-scheme-accent-overlay absolute left-1/2 top-1/2 z-20 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center rounded-full bg-scheme-background transition-opacity group-hover/button:bg-scheme-accent lg:h-20 lg:w-20"
+              >
+                <span class="inline-block h-8 w-8">
+                  {%- render 'icon-play' -%}
+                </span>
+              </span>
+              {%- if video != blank -%}
+                {{
+                  video.preview_image
+                  | image_url: width: 2000
+                  | image_tag:
+                    class: preview_image_media_class,
+                    sizes: sizes
+                }}
+              {%- else -%}
+                {{
+                  'image'
+                  | placeholder_svg_tag: 'w-full h-full bg-scheme-placeholder-background text-scheme-placeholder-foreground fill-current'
+                }}
+              {%- endif -%}
+            </button>
+          </template>
+          <template x-if="enabled">
+            <div
+              class="html-video-wrapper {{ wrapper_class }}"
+              x-data="HTMLVideo"
+              @play="play"
+              @pause="pause"
+            >
+              {%- if video != blank -%}
+                {{
+                  video
+                  | video_tag:
+                    autoplay: true,
+                    image_size: '2048x',
+                    loop: loop,
+                    controls: true,
+                    preload: 'none',
+                    class: media_class,
+                    muted: false,
+                    id: player_id,
+                    x-ref: 'video'
+                }}
+              {%- else -%}
+                <video x-ref="video" autoplay muted class="{{ media_class }}">
+                  <source
+                    src="{{ 'placeholder-video.mp4' | asset_url }}"
+                    type="video/mp4"
+                  >
+                  Your browser does not support the video tag.
+                </video>
+              {%- endif -%}
+            </div>
+          </template>
+        </div>
+      </div>
+  {%- endcase -%}
+</div>
 
-  <div
-    class="{% unless settings.fill_image_to_border_edge %}p-2 lg:p-4{% endunless %}"
-  >
-    {%- render 'video',
-      video: video,
-      mode: section.settings.mode,
-      container_id: section.id,
-      ratio: section.settings.aspect_ratio
-    -%}
-  </div>
-</section>
-
-{% schema %}
-{
-  "name": "Video",
-  "disabled_on": {
-    "groups": [
-      "header",
-      "footer",
-      "aside"
-    ]
-  },
-  "settings": [
-    {
-      "id": "title",
-      "type": "text",
-      "label": "Heading"
-    },
-    {
-      "type": "header",
-      "content": "Video"
-    },
-    {
-      "id": "video",
-      "type": "video",
-      "label": "Video",
-      "info": "If set, will be used instead of the embedded video option. Offers improved performance."
-    },
-    {
-      "type": "select",
-      "id": "mode",
-      "label": "Mode",
-      "options": [
-        {
-          "value": "preview",
-          "label": "Preview"
-        },
-        {
-          "value": "autoplay",
-          "label": "Autoplay"
-        }
-      ],
-      "default": "preview",
-      "info": "Autoplay will not play sound or show controls."
-    },
-    {
-      "type": "select",
-      "id": "aspect_ratio",
-      "label": "Aspect ratio",
-      "default": "1.778",
-      "options": [
-        {
-          "value": "natural",
-          "label": "Natural"
-        },
-        {
-          "value": "1",
-          "label": "Square (1:1)"
-        },
-        {
-          "value": "1.333",
-          "label": "Landscape (4:3)"
-        },
-        {
-          "value": "0.6667",
-          "label": "Portrait (2:3)"
-        },
-        {
-          "value": "1.778",
-          "label": "Widescreen (16:9)"
-        }
-      ]
-    },
-    {
-      "type": "header",
-      "content": "Color"
-    },
-    {
-      "type": "color_scheme",
-      "id": "color_scheme",
-      "default": "scheme1",
-      "label": "Color scheme"
-    }
-  ],
-  "presets": [
-    {
-      "name": "Video"
-    }
-  ]
-}
-{% endschema %}
+{% unless request.design_mode %}
+  <script src="{{ 'video.js' | asset_url }}" type="module"></script>
+  <script src="{{ 'html-video.js' | asset_url }}" type="module"></script>
+{% endunless %}

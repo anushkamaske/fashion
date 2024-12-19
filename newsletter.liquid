@@ -1,81 +1,60 @@
-{%- liquid
-  assign section_color = section.settings.color_scheme
-  assign text_size_class = section.settings.text_size
--%}
+{%- assign form_id = 'Contact-' | append: section_id -%}
+<section
+  class="border-b-gridline border-gridline-color bg-scheme-background py-section-vertical-spacing text-scheme-text"
+  data-color-scheme="{{ section_color }}"
+>
+  <div class="justify-center px-section-horizontal-spacing lg:flex lg:items-center lg:justify-between">
+    <div class="{{ text_size_class }}{% if text_size_class contains 'xl' %} lg:w-1/2{% endif %}">
+      {% if section_title != blank %}
+        <h2 class="font-heading text-heading-standard" for="Email">
+          {{ section_title | escape }}
+        </h2>
+      {% endif %}
 
-{% render 'newsletter',
-  section_color: section_color,
-  text_size_class: text_size_class,
-  section_title: section.settings.section_title,
-  subheading: section.settings.subheading,
-  section_id: section.id
-%}
+      {% if subheading != blank %}
+        <div class="[&_a[href]]:underline [&_a[href]]:hover:text-scheme-accent{% if section_title != blank %} mt-2{% endif %}">
+          {{ subheading }}
+        </div>
+      {% endif %}
+    </div>
 
-{% schema %}
-{
-  "name": "Newsletter",
-  "disabled_on": {
-    "groups": [
-      "header",
-      "footer",
-      "aside"
-    ]
-  },
-  "settings": [
-    {
-      "type": "text",
-      "id": "section_title",
-      "label": "Heading"
-    },
-    {
-      "type": "richtext",
-      "id": "subheading",
-      "label": "Subheading",
-      "default": "<p>Receive special offers and first look at new products.</p>"
-    },
-    {
-      "type": "select",
-      "id": "text_size",
-      "label": "Text size",
-      "options": [
-        {
-          "value": "text-sm",
-          "label": "S"
-        },
-        {
-          "value": "text-base",
-          "label": "M"
-        },
-        {
-          "value": "text-lg",
-          "label": "L"
-        },
-        {
-          "value": "text-xl",
-          "label": "XL"
-        }
-      ],
-      "default": "text-base"
-    },
-    {
-      "type": "paragraph",
-      "content": "Any customers who sign up will have an account created for them in Shopify. [View customers](/admin/customers?query=&accepts_marketing=1)"
-    },
-    {
-      "type": "header",
-      "content": "Color"
-    },
-    {
-      "type": "color_scheme",
-      "id": "color_scheme",
-      "default": "scheme1",
-      "label": "Color scheme"
-    }
-  ],
-  "presets": [
-    {
-      "name": "Newsletter"
-    }
-  ]
-}
-{% endschema %}
+    <div class="mt-theme-half lg:mt-0{% if text_size_class contains 'xl' %} lg:w-1/2{% endif %}">
+      {% form 'customer', id: form_id %}
+        {% if form.errors and template.suffix != 'contact' %}
+          {{ form.errors | default_errors }}
+        {% endif %}
+
+        {% if form.posted_successfully? %}
+          <p class="lg:ml-theme-half">
+            {{ 'general.newsletter_form.confirmation' | t }}
+          </p>
+        {% else %}
+          <input type="hidden" name="contact[tags]" value="newsletter">
+          <div class="items-end lg:ml-4 lg:flex">
+            <label class="sr-only" for="Email-{{ section.id }}">
+              {{- 'general.newsletter_form.email_placeholder' | t -}}
+            </label>
+            <input
+              type="email"
+              class="font-body block w-full border-b-text border-current bg-transparent pb-1 leading-[inherit] placeholder-current"
+              name="contact[email]"
+              id="Email-{{ section.id }}"
+              value="{% if customer.email != blank %}{{ customer.email }}{% endif %}"
+              placeholder="{{ 'general.newsletter_form.email_placeholder' | t }}"
+              autocorrect="off"
+              autocapitalize="off"
+            >
+            <button
+              class="theme-link mt-2 py-1 leading-[inherit] hover:text-scheme-accent shrink-0 lg:ml-2 lg:mt-0"
+              type="submit"
+              name="commit"
+              id="Subscribe"
+            >
+              {{- 'general.newsletter_form.submit' | t -}}
+            </button>
+          </div>
+        {% endif %}
+      {% endform %}
+    </div>
+  </div>
+</section>
